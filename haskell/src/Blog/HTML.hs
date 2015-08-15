@@ -1,5 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Blog.HTML where
+module Blog.HTML (
+    render
+  ) where
 
 import Prelude hiding (div, head)
 
@@ -21,8 +23,8 @@ import Text.Blaze.Html.Renderer.String
 import Blog.Model hiding (entry)
 
 
-indexPage :: FilePath -> BlogT FileProperties -> IO ()
-indexPage outDir blog = do
+render :: FilePath -> BlogT FileProperties -> IO ()
+render outDir blog = do
   let frame = createPageFrame blog
   let topicsDiv = topics blog
   let content = renderHtml $ frame NavInPlace topicsDiv

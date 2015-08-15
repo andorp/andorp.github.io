@@ -15,7 +15,7 @@ main :: IO ()
 main = do
   (inputDir, htmlOutputDir) <- checkAndGetParams
   blog <- browse inputDir
-  indexPage htmlOutputDir (dropPrefixOfFP inputDir <$> blog)
+  render htmlOutputDir (dropPrefixOfFP inputDir <$> blog)
 
 checkAndGetParams :: IO (FilePath, FilePath)
 checkAndGetParams = do
