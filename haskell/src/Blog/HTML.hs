@@ -121,7 +121,7 @@ topics blog =
 createPageFrame :: BlogT FileProperties -> NavPath -> Html -> Html
 createPageFrame blog navPath content = do
   htmlHeader
-  container $ do
+  body $ container $ do
     topNavbar navPath
     row $ do
       colMd3 $ menu blog navPath
