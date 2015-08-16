@@ -82,18 +82,19 @@ instance Functor TopicT where
 type Blog = BlogT ()
 
 data BlogT a = Blog {
-    b_hole  :: a
-  , b_topics :: [TopicT a]
+    b_hole    :: a
+  , b_summary :: Pandoc
+  , b_topics  :: [TopicT a]
   } deriving (Eq, Show)
 
 blog pages = Blog () pages
 
-type BlogAlgebra a t e es p bs b = (TopicAlgebra a t e es p, ListAlgebra p bs, a -> bs -> b)
+type BlogAlgebra a t e es p bs b = (TopicAlgebra a t e es p, ListAlgebra p bs, a -> Pandoc -> bs -> b)
 
 blogAlgebra :: BlogAlgebra a t e es p bs b -> BlogT a -> b
-blogAlgebra (topic, topicList, combine) (Blog hole topics) =
-  combine hole (listAlgebra topicList (fmap (topicAlgebra topic) topics))
+blogAlgebra (topic, topicList, combine) (Blog hole summary topics) =
+  combine hole summary (listAlgebra topicList (fmap (topicAlgebra topic) topics))
 
 instance Functor BlogT where
-  fmap f (Blog hole topics) = Blog (f hole) (fmap (fmap f) topics)
+  fmap f (Blog hole summary topics) = Blog (f hole) summary (fmap (fmap f) topics)
 

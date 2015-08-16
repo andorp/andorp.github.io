@@ -27,7 +27,9 @@ render :: FilePath -> BlogT FileProperties -> IO ()
 render outDir blog = do
   let frame = createPageFrame blog
   let topicsDiv = topics blog
-  let content = renderHtml $ frame NavInPlace topicsDiv
+  let content = renderHtml $ frame NavInPlace $ do
+                  pandoc2panel $ b_summary blog
+                  topicsDiv
   writeFile (outDir </> "index.html") content
   renderPages outDir frame blog
 
@@ -55,7 +57,7 @@ renderPages outDir frame = blogAlgebra render where
   entryList = (return [], \xs x -> (:) <$> x <*> xs)
   
   topic = (topicName, entry, entryList, topicNameEntryList)
-  combineTopicList fp ls = ls
+  combineTopicList fp _summary ls = ls
   render = (topic, sequence_, combineTopicList)
 
   sequence_ = (return (), (>>))
@@ -96,7 +98,7 @@ menu blog navPath = blogAlgebra blogMenu blog
     listToVoid = ((), \_ _ -> ())
     topicMenu = (return (), (>>))
     ignoreEntryList _hole topicName _entryList = topicName
-    wrapMenu _hole menuItems = ul ! class_ "nav nav-pills nav-stacked" $ menuItems
+    wrapMenu _hole _summary menuItems = ul ! class_ "nav nav-pills nav-stacked" $ menuItems
 
     filePropertiesToLink fp html = a ! href (markdownPathToHTMLPath $ navPrefix navPath </> path fp) $ html
 

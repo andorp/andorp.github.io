@@ -21,14 +21,16 @@ getFileProperties :: FilePath -> IO FileProperties
 getFileProperties path = FileProperties path <$> getModificationTime path
 
 topicFile = "topic.md"
+summaryFile = "summary.md"
 markdownExtension = ".md"
 
 browse :: FilePath -> IO (BlogT FileProperties)
 browse rootDir = do
-  fp <- getFileProperties rootDir
+  fp       <- getFileProperties rootDir
+  summary  <- readMarkdownFile (rootDir </> summaryFile)
   contents <- getDirectoryContentsNoDots rootDir
   dirs     <- (filterM doesDirectoryExist contents)
-  Blog fp <$> mapM browseTopicDir dirs
+  Blog fp summary <$> mapM browseTopicDir dirs
 
 browseTopicDir :: FilePath -> IO (TopicT FileProperties)
 browseTopicDir topicDir = do
