@@ -10,5 +10,5 @@ can check it out from [His youtube channel](https://www.youtube.com/watch?v=OGUu
 ## My contribution
 
 It is useful to define the rules of an algebraic structure which can be represented
-in type classes in Haskell. E.g the rules of monoids in [Free.hs](../../asset/free/Free.hs)
+in type classes in Haskell. E.g the rules of monoids in [Free.hs](https://github.com/andorp/andorp.github.io/blob/master/asset/free/Free.hs)
 file.
