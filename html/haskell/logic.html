@@ -1,0 +1,147 @@
+<head><title>Blog</title><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css"><script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script><script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script></head><body><div class="container"><div class="navbar navbar-default"><div class="container-fluid"><div class="navbar-header"><a class="navbar-brand" href="../index.html">andorp</a></div></div></div><div class="row"><div class="col-md-3"><ul class="nav nav-pills nav-stacked"><li><a href="../haskell.html">Haskell</a></li></ul></div><div class="col-md-9"><h1 id="unification-with-backtracking-monad">Unification with Backtracking monad</h1>
+<h2 id="the-story">The story</h2>
+<p>After watching <a href="http://www.cse.chalmers.se/~rjmh/OPLSS/">John Hughes' lecture on Monad</a>, I decided to reimplement the logic he introduced from zero useing the newest version of the <a href="https://hackage.haskell.org/package/logict">Logic</a> haskell package. Fortunately the interface was easy to reuse.</p>
+<p>In the future I would like to reuse the unification logic to implement some tiny compilers in Haskell.</p>
+<h2 id="the-code">The code</h2>
+<h3 id="imports">Imports</h3>
+<p>No much import is necessary and generalized newtype deriving saves us lot of time.</p>
+<pre><code>{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+module Main where
+
+import Control.Monad
+import Control.Applicative
+import qualified Control.Monad.Logic as L
+import Control.Monad.IO.Class
+import Data.IORef</code></pre>
+<h3 id="monadic-interfacce">Monadic interfacce</h3>
+<p>Logic search is monadic and it is built on top of IO. In this was we can create logical variables on the easy way. <code>MonadPlus</code> and <code>MonadLogic</code> instances are stands for the reuseability of the <code>LogicT</code> backtracking monad.</p>
+<pre><code>newtype Logic a = Logic { unLogic :: L.LogicT IO a }
+  deriving (Functor, Applicative, Alternative, Monad, L.MonadPlus, L.MonadLogic, MonadIO)</code></pre>
+<p>As we are interested in any solutions, we need to unwrap the Logic constructor and use <code>observeManyT</code> combinator of the <code>LogicT</code> library.</p>
+<pre><code>run :: Logic a -&gt; IO [a]
+run = L.observeManyT . unLogic</code></pre>
+<h3 id="logical-variables">Logical variables</h3>
+<p>A logical variable is a reference cell in the memory that could be empty, or can hold a value or a link to another logical variable, which link is created during the unification process.</p>
+<pre><code>type LogicVar a = IORef (Maybe (Logical a))
+
+data Logical a = Value a | Var (LogicVar a)</code></pre>
+<p>Creating a new variable, creates a new <code>IORef</code> wrapped into a <code>Var</code>.</p>
+<pre><code>variable :: Logic (Logical a)
+variable = liftM Var (liftIO (newIORef Nothing))</code></pre>
+<p>We need to check if a chain of variables at the end contains a value or ends up in a variable witout any value.</p>
+<pre><code>follow :: Logical a -&gt; Logic (Logical a)
+follow (Value a) = return (Value a)
+follow (Var r) = do
+  v &lt;- liftIO $ readIORef r
+  case v of
+    Nothing -&gt; return (Var r)
+    Just  v -&gt; follow v</code></pre>
+<h3 id="unification">Unification</h3>
+<p>Unification works on two things with the same type. Unification differs on different types, so forth, we need to define a type class for it. Unification is a Logic computation which could succeed without any relevant information, or could fail.</p>
+<pre><code>class Unifiable a where
+  unify :: a -&gt; a -&gt; Logic ()</code></pre>
+<p>Unification of two integer values is to check if those values are the same. The <code>guard</code> combinator is perfect to do the job for us.</p>
+<pre><code>instance Unifiable Integer where
+  unify a b = guard (a == b)</code></pre>
+<p>Unification of two logical values is to follow the two values. There are four different cases.</p>
+<ul>
+<li>If the variables are at the end of the chains, we have to check it they are the same. In that case, we are ok.</li>
+<li>If the first chain ends up in a variable, we link that to the second end of the chain, no matter if it is a variable or a value.</li>
+<li>If the second chain ends up in a variable, we link that to the end of the first chain, which must be a value.</li>
+<li>If both ends of the chains are values, we need to unify them.</li>
+</ul>
+<p>Let's see.</p>
+<pre><code>instance Unifiable a =&gt; Unifiable (Logical a) where
+  unify a b = do
+    a&#39; &lt;- follow a
+    b&#39; &lt;- follow b
+    case (a&#39;,b&#39;) of
+      (Var ra, Var rb) | ra == rb -&gt; return ()
+      (Var ra, _) -&gt; instantiate ra b&#39;
+      (_, Var rb) -&gt; instantiate rb a&#39;
+      (Value a, Value b) -&gt; unify a b</code></pre>
+<p>Instantiation is the process how we link to variables together. The clause after <code>mplus</code> supports the clean-up of the given value in any case of failure, and after cleaning up, the computation fails, and continues on backtracking.</p>
+<pre><code>instantiate r v =
+  liftIO (writeIORef r (Just v)) `mplus` do { liftIO (writeIORef r Nothing); mzero }</code></pre>
+<p>To avoid lot of boilerplate code, we define a class for Haskell types that can be represented in our logic computations. The <code>LogicRepr</code> typeclass is for that, and gives us default implementations.</p>
+<pre><code>class LogicRepr a where
+  toLogical :: a -&gt; Logical a
+  toLogical = Value
+  fromLogical :: Logical a -&gt; Logic a
+  fromLogical = value</code></pre>
+<p>The default implementaion claims a logical variable to have a value, or the computation for the conversion should fail.</p>
+<pre><code>value :: Logical a -&gt; Logic a
+value l = do
+  l &lt;- follow l
+  case l of
+    Value a -&gt; return a
+    Var _ -&gt; mzero</code></pre>
+<p>In our example we use only integers...</p>
+<pre><code>instance LogicRepr Integer where</code></pre>
+<p>... and logical lists, which are differents from haskell list in a sense, that they can contain places for further unifications.</p>
+<pre><code>data List a = Nil | Cons a (Logical (List a))</code></pre>
+<p>Unification of a logical list is straightforward.</p>
+<pre><code>instance Unifiable a =&gt; Unifiable (List a) where
+  unify Nil Nil = return ()
+  unify (Cons x xs) (Cons y ys) = do
+    unify x y
+    unify xs ys
+  unify _ _ = mzero</code></pre>
+<p>We can convert easily from <code>Haskell List</code>s into <code>Logical List</code>s</p>
+<pre><code>toLogicalList :: (LogicRepr a) =&gt; [a] -&gt; Logical (List (Logical a))
+toLogicalList []     = Value Nil
+toLogicalList (x:xs) = Value $ Cons (toLogical x) (toLogicalList xs)</code></pre>
+<p>Also we can convert easily from <code>Logical List</code>s to <code>Haskell List</code>s</p>
+<pre><code>fromLogicalList :: (LogicRepr a) =&gt; Logical (List (Logical a)) -&gt; Logic [a]
+fromLogicalList l = do
+  l &lt;- value l
+  case l of
+    Nil -&gt; return []
+    Cons x xs -&gt; do
+      x &lt;- value x
+      xs &lt;- fromLogicalList xs
+      return (x:xs)</code></pre>
+<h3 id="tests">Tests</h3>
+<p>Let's run some tests...</p>
+<pre><code>test1 :: Integer -&gt; Logic ()
+test1 n = do
+  x &lt;- variable
+  y &lt;- variable
+  unify x y
+  unify y (toLogical n)
+  x&#39; &lt;- fromLogical x
+  liftIO $ print x&#39;</code></pre>
+<p>We can check if prolog append example works as expected.</p>
+<pre><code>-- Prolog append example
+-- append([], Ys, Ys).
+-- append(X|Xs, Ys, Zs) :- append(Xs, Ys, X|Zs)
+
+appendL xs ys zs =
+  (do unify xs (Value Nil)
+      unify ys zs)
+  `mplus`
+  (do x   &lt;- variable
+      xs&#39; &lt;- variable
+      zs&#39; &lt;- variable
+      unify xs (Value (Cons x xs&#39;))
+      unify zs (Value (Cons x zs&#39;))
+      appendL xs&#39; ys zs&#39;)
+
+test2 :: [Integer] -&gt; Logic ([Integer], [Integer])
+test2 zs = do
+  xs &lt;- variable
+  ys &lt;- variable
+  appendL xs ys (toLogicalList zs)
+  liftM2 (,) (fromLogicalList xs) (fromLogicalList ys)</code></pre>
+<h3 id="main">Main</h3>
+<pre><code>main = do
+  run (mzero :: Logic ()) &gt;&gt;= print
+  run (test1 10) &gt;&gt;= print
+  run (test2 [1,2,3]) &gt;&gt;= print</code></pre>
+<p>It will print</p>
+<pre><code>[]
+10
+[()]
+[([],[1,2,3]),([1],[2,3]),([1,2],[3]),([1,2,3],[])]</code></pre>
+<h2 id="conclusion">Conclusion</h2>
+<p>It is easy to write a simple unification algorithm is one can use the existing backtracking monad in Haskell. The code can be found <a href="https://andorp.github.io/asset/haskell/logic.hs">here.</a></p></div></div></div></body>
