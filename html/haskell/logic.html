@@ -13,7 +13,7 @@ import Control.Applicative
 import qualified Control.Monad.Logic as L
 import Control.Monad.IO.Class
 import Data.IORef</code></pre>
-<h3 id="monadic-interfacce">Monadic interfacce</h3>
+<h3 id="monadic-interface">Monadic interface</h3>
 <p>Logic search is monadic and it is built on top of IO. In this was we can create logical variables on the easy way. <code>MonadPlus</code> and <code>MonadLogic</code> instances are stands for the reuseability of the <code>LogicT</code> backtracking monad.</p>
 <pre><code>newtype Logic a = Logic { unLogic :: L.LogicT IO a }
   deriving (Functor, Applicative, Alternative, Monad, L.MonadPlus, L.MonadLogic, MonadIO)</code></pre>

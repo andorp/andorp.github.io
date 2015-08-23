@@ -22,7 +22,7 @@ No much import is necessary and generalized newtype deriving saves us lot of tim
     import Control.Monad.IO.Class
     import Data.IORef
 
-### Monadic interfacce
+### Monadic interface
 
 Logic search is monadic and it is built on top of IO. In this was we can create logical variables
 on the easy way. `MonadPlus` and `MonadLogic` instances are stands for the reuseability of the
