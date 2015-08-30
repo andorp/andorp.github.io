@@ -35,7 +35,7 @@ render outDir blog = do
 
 
 renderPages :: FilePath -> (NavPath -> Html -> Html) -> BlogT FileProperties -> IO ()
-renderPages outDir frame = blogAlgebra render where
+renderPages outDir frame = blogCatamorphism render where
   topicName fp pandoc = do
     Dir.createDirectoryIfMissing True $ outDir </> markdownPathToHTMLDir fp
     return (\content -> writeFile (outDir </> (markdownPathToHTMLPathFP fp)) (renderHtml $ frame NavInPlace content)
@@ -54,7 +54,7 @@ renderPages outDir frame = blogAlgebra render where
       pandoc2panel pandoc
       topicsList headers
 
-  entryList = (return [], \xs x -> (:) <$> x <*> xs)
+  entryList = (return [], \x xs -> (:) <$> x <*> xs)
   
   topic = (topicName, entry, entryList, topicNameEntryList)
   combineTopicList fp _summary ls = ls
@@ -77,19 +77,19 @@ data NavPathAlgebra m = NavPathAlgebra {
   }
 
 
-navPathAlgebra :: NavPathAlgebra m -> NavPath -> m
-navPathAlgebra algebra n =
+navPathCatamorphism :: NavPathAlgebra m -> NavPath -> m
+navPathCatamorphism algebra n =
   case n of
     NavForward m -> np_forward  algebra m
     NavInPlace   -> np_inplace  algebra
     NavBackward  -> np_backward algebra
 
 
-navPrefix = navPathAlgebra (NavPathAlgebra {np_forward = id, np_inplace = "", np_backward = ".."})
+navPrefix = navPathCatamorphism (NavPathAlgebra {np_forward = id, np_inplace = "", np_backward = ".."})
 
 
 menu :: BlogT FileProperties -> NavPath -> Html
-menu blog navPath = blogAlgebra blogMenu blog
+menu blog navPath = blogCatamorphism blogMenu blog
   where
     blogMenu = (topicToListItem, topicMenu, wrapMenu)
     topicToListItem = (topicNameToListItem, entryToVoid, listToVoid, ignoreEntryList)

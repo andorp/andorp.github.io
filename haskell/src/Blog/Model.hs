@@ -1,5 +1,6 @@
 module Blog.Model where
 
+import Data.List (unfoldr)
 import Data.Text (Text)
 import Data.Time.Clock (UTCTime)
 import Text.Pandoc.Definition (Pandoc)
@@ -14,10 +15,10 @@ data FileProperties = FileProperties {
 
 -- List
 
-type ListAlgebra a b = (b, b -> a -> b)
+type ListAlgebra a b = (b, a -> b -> b)
 
-listAlgebra :: ListAlgebra a b -> [a] -> b
-listAlgebra (nil, cons) = foldl cons nil
+listCatamorphism :: ListAlgebra a b -> [a] -> b
+listCatamorphism (nil, cons) = foldr cons nil
 
 -- Entry
 
@@ -32,8 +33,8 @@ entry lines = Entry () lines
 
 type EntryAlgebra a b = (a -> Pandoc -> b)
 
-entryAlgebra :: EntryAlgebra a b -> EntryT a -> b
-entryAlgebra f (Entry hole lines) = f hole lines
+entryCatamorphism :: EntryAlgebra a b -> EntryT a -> b
+entryCatamorphism f (Entry hole lines) = f hole lines
 
 instance Functor EntryT where
   fmap f (Entry x lines) = Entry (f x) lines
@@ -51,8 +52,8 @@ topicName name = TopicName () name
 
 type TopicNameAlgebra a b = (a -> Pandoc -> b)
 
-topicNameAlgebra :: TopicNameAlgebra a b -> TopicNameT a -> b
-topicNameAlgebra f (TopicName hole name) = f hole name
+topicNameCatamorphism :: TopicNameAlgebra a b -> TopicNameT a -> b
+topicNameCatamorphism f (TopicName hole name) = f hole name
 
 instance Functor TopicNameT where
   fmap f (TopicName x name) = TopicName (f x) name
@@ -70,9 +71,9 @@ topic topicName entries = Topic () topicName entries
 
 type TopicAlgebra a t e es p = (TopicNameAlgebra a t, EntryAlgebra a e, ListAlgebra e es, a -> t -> es -> p)
 
-topicAlgebra :: TopicAlgebra a t e es p -> TopicT a -> p
-topicAlgebra (topicNameAlg, entryAlg, entriesListAlg, combine) (Topic hole topicName entries)
-  = combine hole (topicNameAlgebra topicNameAlg topicName) (listAlgebra entriesListAlg (fmap (entryAlgebra entryAlg) entries))
+topicCatamorphism :: TopicAlgebra a t e es p -> TopicT a -> p
+topicCatamorphism (topicNameAlg, entryAlg, entriesListAlg, combine) (Topic hole topicName entries)
+  = combine hole (topicNameCatamorphism topicNameAlg topicName) (listCatamorphism entriesListAlg (fmap (entryCatamorphism entryAlg) entries))
 
 instance Functor TopicT where
   fmap f (Topic hole topicName entries) = Topic (f hole) (fmap f topicName) (fmap (fmap f) entries)
@@ -91,9 +92,9 @@ blog pages = Blog () pages
 
 type BlogAlgebra a t e es p bs b = (TopicAlgebra a t e es p, ListAlgebra p bs, a -> Pandoc -> bs -> b)
 
-blogAlgebra :: BlogAlgebra a t e es p bs b -> BlogT a -> b
-blogAlgebra (topic, topicList, combine) (Blog hole summary topics) =
-  combine hole summary (listAlgebra topicList (fmap (topicAlgebra topic) topics))
+blogCatamorphism :: BlogAlgebra a t e es p bs b -> BlogT a -> b
+blogCatamorphism (topic, topicList, combine) (Blog hole summary topics) =
+  combine hole summary (listCatamorphism topicList (fmap (topicCatamorphism topic) topics))
 
 instance Functor BlogT where
   fmap f (Blog hole summary topics) = Blog (f hole) summary (fmap (fmap f) topics)
