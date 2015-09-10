@@ -1,9 +1,14 @@
-<head><title>Blog</title><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css"><script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script><script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script></head><body><div class="container"><div class="navbar navbar-default"><div class="container-fluid"><div class="navbar-header"><a class="navbar-brand" href="../index.html">andorp</a></div></div></div><div class="row"><div class="col-md-3"><ul class="nav nav-pills nav-stacked"><li><a href="../haskell.html">Haskell</a></li></ul></div><div class="col-md-9"><h1 id="unification-with-backtracking-monad">Unification with Backtracking monad</h1>
-<h2 id="the-story">The story</h2>
+<head><title>Blog</title><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css"><script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script><script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script></head><body><div class="container"><div class="navbar navbar-default"><div class="container-fluid"><div class="navbar-header"><a class="navbar-brand" href="../index.html">andorp</a></div></div></div><div class="row"><div class="col-md-3"><ul class="nav nav-pills nav-stacked"><li><a href="../haskell.html">Haskell</a></li></ul></div><div class="col-md-9"><section id="unification-with-backtracking-monad" class="level1">
+<h1>Unification with Backtracking monad</h1>
+<section id="the-story" class="level2">
+<h2>The story</h2>
 <p>After watching <a href="http://www.cse.chalmers.se/~rjmh/OPLSS/">John Hughes' lecture on Monad</a>, I decided to reimplement the logic he introduced from zero useing the newest version of the <a href="https://hackage.haskell.org/package/logict">Logic</a> haskell package. Fortunately the interface was easy to reuse.</p>
 <p>In the future I would like to reuse the unification logic to implement some tiny compilers in Haskell.</p>
-<h2 id="the-code">The code</h2>
-<h3 id="imports">Imports</h3>
+</section>
+<section id="the-code" class="level2">
+<h2>The code</h2>
+<section id="imports" class="level3">
+<h3>Imports</h3>
 <p>No much import is necessary and generalized newtype deriving saves us lot of time.</p>
 <pre><code>{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Main where
@@ -13,14 +18,18 @@ import Control.Applicative
 import qualified Control.Monad.Logic as L
 import Control.Monad.IO.Class
 import Data.IORef</code></pre>
-<h3 id="monadic-interface">Monadic interface</h3>
+</section>
+<section id="monadic-interface" class="level3">
+<h3>Monadic interface</h3>
 <p>Logic search is monadic and it is built on top of IO. In this was we can create logical variables on the easy way. <code>MonadPlus</code> and <code>MonadLogic</code> instances are stands for the reuseability of the <code>LogicT</code> backtracking monad.</p>
 <pre><code>newtype Logic a = Logic { unLogic :: L.LogicT IO a }
   deriving (Functor, Applicative, Alternative, Monad, L.MonadPlus, L.MonadLogic, MonadIO)</code></pre>
 <p>As we are interested in any solutions, we need to unwrap the Logic constructor and use <code>observeManyT</code> combinator of the <code>LogicT</code> library.</p>
 <pre><code>run :: Logic a -&gt; IO [a]
 run = L.observeManyT . unLogic</code></pre>
-<h3 id="logical-variables">Logical variables</h3>
+</section>
+<section id="logical-variables" class="level3">
+<h3>Logical variables</h3>
 <p>A logical variable is a reference cell in the memory that could be empty, or can hold a value or a link to another logical variable, which link is created during the unification process.</p>
 <pre><code>type LogicVar a = IORef (Maybe (Logical a))
 
@@ -36,7 +45,9 @@ follow (Var r) = do
   case v of
     Nothing -&gt; return (Var r)
     Just  v -&gt; follow v</code></pre>
-<h3 id="unification">Unification</h3>
+</section>
+<section id="unification" class="level3">
+<h3>Unification</h3>
 <p>Unification works on two things with the same type. Unification differs on different types, so forth, we need to define a type class for it. Unification is a Logic computation which could succeed without any relevant information, or could fail.</p>
 <pre><code>class Unifiable a where
   unify :: a -&gt; a -&gt; Logic ()</code></pre>
@@ -101,7 +112,9 @@ fromLogicalList l = do
       x &lt;- value x
       xs &lt;- fromLogicalList xs
       return (x:xs)</code></pre>
-<h3 id="tests">Tests</h3>
+</section>
+<section id="tests" class="level3">
+<h3>Tests</h3>
 <p>Let's run some tests...</p>
 <pre><code>test1 :: Integer -&gt; Logic ()
 test1 n = do
@@ -133,7 +146,9 @@ test2 zs = do
   ys &lt;- variable
   appendL xs ys (toLogicalList zs)
   liftM2 (,) (fromLogicalList xs) (fromLogicalList ys)</code></pre>
-<h3 id="main">Main</h3>
+</section>
+<section id="main" class="level3">
+<h3>Main</h3>
 <pre><code>main = do
   run (mzero :: Logic ()) &gt;&gt;= print
   run (test1 10) &gt;&gt;= print
@@ -143,5 +158,10 @@ test2 zs = do
 10
 [()]
 [([],[1,2,3]),([1],[2,3]),([1,2],[3]),([1,2,3],[])]</code></pre>
-<h2 id="conclusion">Conclusion</h2>
-<p>It is easy to write a simple unification algorithm is one can use the existing backtracking monad in Haskell. The code can be found <a href="https://andorp.github.io/asset/haskell/logic.hs">here.</a></p></div></div></div></body>
+</section>
+</section>
+<section id="conclusion" class="level2">
+<h2>Conclusion</h2>
+<p>It is easy to write a simple unification algorithm is one can use the existing backtracking monad in Haskell. The code can be found <a href="https://andorp.github.io/asset/haskell/logic.hs">here.</a></p>
+</section>
+</section></div></div></div></body>

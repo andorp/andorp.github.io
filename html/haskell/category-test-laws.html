@@ -1,0 +1,186 @@
+<head><title>Blog</title><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css"><script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script><script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script></head><body><div class="container"><div class="navbar navbar-default"><div class="container-fluid"><div class="navbar-header"><a class="navbar-brand" href="../index.html">andorp</a></div></div></div><div class="row"><div class="col-md-3"><ul class="nav nav-pills nav-stacked"><li><a href="../haskell.html">Haskell</a></li></ul></div><div class="col-md-9"><section id="quickcheck-properties-from-laws-of-category-theory-functor-monad-etc..." class="level1">
+<h1>QuickCheck properties from laws of Category Theory (Functor, Monad, etc...)</h1>
+<section id="the-story" class="level2">
+<h2>The story</h2>
+<p>There is a strong correspondence between Haskell and Category Theory. Many Haskell developers tend to learn category theory as theoretical basis of functional programming. I think category theory can help understand programs and information that programs process. But I don't think that is the only way. As buddhism says there are many ways to nirvana.</p>
+<p>When I started to learn Haskell programming, I was almost alone at a small university with some of my friends interested in the topic of Functional Programming. No special courses were available. Somehow we encountered the <a href="http://book.realworldhaskell.org/read/">Real World Haskell</a> and we learnt Haskell from that book. After a while we started to be more curios, and googled terms like <code>Functor</code>s and <code>Monad</code>s, nonetheless to say, we hit the search result come from <code>Category Theory</code>, again no special courses were provided at the University, so we started to google again. We found the books and introductory courses, with the same terminology as Haskell has but totally different kind of description.</p>
+<p>Still I miss a good explanation of the correspondence between Haskell and Category Theory. When a newcomers to Haskell come, and they come. They usually ask me, if they have to learn CT (abbreviation Category Theory), my answer is no, but sooner or later the same people ask me the same question: &quot;I don't understand, how definitions of Monads in category theory correspondens the ones we have in Haskell, could you explain it to me?&quot;</p>
+<p>The problem is that these definitions are more or less the same, but you have to see how you can transform one to the other. I would like to give a short explanation for that, supposing that the reader knows the definition of a <code>Category</code> and have written some Haskell code, which have included some <code>Functor</code>s and <code>Monad</code>s.</p>
+<p>To draw the clear picture, I also created a <a href="https://github.com/category-test-laws">github repository</a> how the definitions of CT can be written in Haskell, having the goal in my mind to keep the abstraction level near to the original definitions of Haskell itself. As a side effect of the project there are <code>QuickCheck</code> properties that the developer can use, to check if his/her <code>Functor</code> and/or <code>Monad</code> definitions fulfill the laws. There is no explanation given about Natural Transformation and Adjoint in this blog post but references can be found in the repository mentioned above.</p>
+</section>
+<section id="hask-category" class="level2">
+<h2>Hask Category</h2>
+<p>First of all, we have to talk about the Hask category. In Hask objects are types and the morphism are total functions. This is a simplistic view, but we don't want to complicate the things. For further reference please check <a href="https://www.youtube.com/watch?v=Klwkt9oJwg0">Edward Kmett on Hask</a> As far as I know his implementation is more CT related than I present here.</p>
+<section id="functor" class="level3">
+<h3>Functor</h3>
+<p>The first confusion with Haskell; in Category Theory functors map one category to the other, but in Haskell.</p>
+<pre><code>class Functor f where
+  fmap :: (a -&gt; b) -&gt; f a -&gt; f b</code></pre>
+<p>The <code>Functor</code> type class has function with first argument of <code>a -&gt; b</code> which is a pure function. We need to use some parenthesis to have the a step further: <code>fmap :: (a -&gt; b) -&gt; (f a -&gt; f b)</code>. <code>fmap</code> is a pure function that transforms a pure function into an other function that works within the a category that is transformed by the functor.</p>
+</section>
+<section id="newtype-hask-a-..." class="level3">
+<h3>newtype Hask a = ...</h3>
+<p>To be able to talk about the category of Haskell types and functions we need to denote it. The trick here is to create a type which is isomorphic to the mentioned category above.</p>
+<pre><code>newtype Hask a = Hask { unHask :: a }
+
+instance Functor Hask where
+  fmap f (Hask x) = Hask (f x)</code></pre>
+<p>The isomorphism comes from the <code>Hask</code> and <code>unHask</code> functions. The Hask type is also a functor, doing no more than wrapping the computed value into the <code>Hask</code> constructor. In short, when we see type <code>a</code> it is isomorhic to <code>Hask a</code> which is a Functor in the sense of CT and Haskell. This correspondence will help us to understand and interpret the Monad definition from Category Theory in the Haskell context.</p>
+</section>
+</section>
+<section id="laws-and-properties" class="level2">
+<h2>Laws and Properties</h2>
+<section id="functor-laws" class="level3">
+<h3>Functor laws</h3>
+<p>Functors in Category Theory are functions from a category to another category, preserving the structures of the first category in the second category. The preservation is done via, laws that a Functor should obey. <a href="https://en.wikibooks.org/wiki/Haskell/The_Functor_class#The_functor_laws">These laws are the identity and compostion and can be formalized in Haskell.</a></p>
+<p>We can go further, formalizing these laws as functions in haskell that returns True if the law is hold for some given case.</p>
+<section id="identity" class="level4">
+<h4>Identity</h4>
+<pre><code>identityWith :: (Functor f) =&gt; (f a -&gt; f a -&gt; Bool) -&gt; f a -&gt; Bool
+identityWith eq fx = id fx `eq` (fmap id fx)</code></pre>
+<p>We need to avoid the <code>Eq</code> typeclass, to be able to write the first law of a Functor in the most abstract way. The <code>eq</code> parameter provides us a function which can decide if the given two values of a functor are equivalent or not. The <code>fx</code> parameter represents a value with type <code>f a</code>. The <code>id fx</code> is written in this form to show the exact eqaulity (or commutative square) of the two sides.</p>
+<p>Using the type <code>Eq</code> type class we can reuse the <code>identityWith</code> function:</p>
+<pre><code>identity :: (Functor f, Eq (f a)) =&gt; f a -&gt; Bool
+identity = identityWith (==)</code></pre>
+<p>QuickCheck properties can de defined easily from the given function that represents the identity law, combining with the <a href="https://hackage.haskell.org/package/QuickCheck-2.8.1/docs/src/Test-QuickCheck-Property.html#forAll"><code>forAll</code></a> property of QuickCheck.</p>
+<pre><code>identity_with_prop gen_fa eq = forAll gen_fa (identityWith eq)</code></pre>
+<p>For more convenience we can reuse the property above, using the <code>(==)</code> combinator</p>
+<pre><code>identity_prop gen_fa = identity_with_prop gen_fa (==)</code></pre>
+</section>
+<section id="compostion" class="level4">
+<h4>Compostion</h4>
+<p>The second law is the compostion. It requires that the compostion of two functions inside and outside the functor has to produce the same result. Everything is written out, to draw the exact picture what components should be equal in the equatation. Same applies for omitting the <code>Eq</code> class here, we would like to be as abstract as possible.</p>
+<pre><code>compositionWith :: (Functor f) =&gt; (f c -&gt; f c -&gt; Bool) -&gt; (b -&gt; c) -&gt; (a -&gt; b) -&gt; f a -&gt; Bool
+compositionWith eq f g fx = (fmap (f . g) fx) `eq` ((fmap f) . (fmap g) $ fx)</code></pre>
+<p>Reusing the <code>compostionWith</code> we can define the <code>composition</code> law.</p>
+<pre><code>composition :: (Functor f, Eq (f c)) =&gt; (b -&gt; c) -&gt; (a -&gt; b) -&gt; f a -&gt; Bool
+composition = compositionWith (==)</code></pre>
+<p>The corresponding QuickCheck property uses a very good construction, namely the <code>Gen (Fun a b)</code> that represents a function from <code>a</code> to <code>b</code> and that function is randomly generated.</p>
+<pre><code>composition_with_prop gen_a gen_fbc gen_fab eq
+  = forAll gen_a   $ \x -&gt;
+    forAll gen_fab $ \(Fun _ fab) -&gt;
+    forAll gen_fbc $ \(Fun _ fbc) -&gt;
+    compositionWith eq fbc fab x
+
+composition_prop gen_a gen_fbc gen_fab
+  = commposition_with_prop gen_a gen_fbc gen_fab (==)</code></pre>
+</section>
+</section>
+<section id="natural-transformations" class="level3">
+<h3>Natural transformations</h3>
+<p>Next step towards the monad definition is the <a href="https://wiki.haskell.org/Category_theory/Natural_transformation">Natural Transformation</a>.</p>
+<p>The definition says that, for every type in <code>Hask</code>, and for two (endo)functors in <code>Hask</code>, we should select a transformation which converts values from <code>f a</code> to <code>g a</code>, for every morphism (total function) <code>f</code> in Hask the diagram commutes.</p>
+<p>Where does the index <code>A</code> of natural transformation go? The definition says that for every <code>A</code> there is a <code>function</code>. It leads us where the actual function depends on a type, so natural transformations are family of functions, but the type system of Haskell does not support this part of the definition we can just give natural transformations that give the same function for every type <code>A</code>:</p>
+<pre><code>-- Rank2Types
+type NatTrans f g = (Functor f, Functor g) =&gt; forall a . f a -&gt; g a</code></pre>
+<p>In short natural transformations are conversion between functors, having a nice property; no matter which path we choose:</p>
+<ul>
+<li>Applying a function <code>f :: (a -&gt; b)</code> in the <code>F</code> functor which transforms <code>f a</code> to <code>f b</code> after the natural transformation which gives us a value with type <code>g b</code>, we get the same as</li>
+<li>we would transform the value <code>f a</code> to <code>g a</code> with the natural transformation, and applying the given <code>f :: a -&gt; b</code> in the <code>G</code> functor, we get <code>g b</code></li>
+</ul>
+<section id="in-haskell" class="level4">
+<h4>In Haskell:</h4>
+<p>The case for a given value in <code>NatTrans f g</code>, <code>f a</code> and <code>a -&gt; b</code>, we can check if the LHS and RHS of the <code>eq</code> function holds:</p>
+<pre><code>naturalityWith
+  :: (Functor f, Functor g)
+  =&gt; (g b -&gt; g b -&gt; Bool) -&gt; NatTrans f g -&gt; (a -&gt; b) -&gt; f a -&gt; Bool
+naturalityWith eq nt h x = nt (fmap_F h x) `eq` fmap_G h (nt x) where
+  fmap_F = fmap
+  fmap_G = fmap</code></pre>
+<p>The quickcheck property from the definition</p>
+<pre><code>naturalityWith
+  :: (Functor f, Functor g, Show a, Show b, Show (f a))
+  =&gt; Gen (Fun a b) -&gt; Gen (f a) -&gt; (g b -&gt; g b -&gt; Bool) -&gt; NatTrans f g
+  -&gt; Property
+naturalityWith gen_fab gen_a eq natTrans =
+  forAll gen_fab $ \(Fun _ fab) -&gt;
+  forAll gen_a   $ \a -&gt;
+  Laws.naturalityWith eq natTrans fab a</code></pre>
+<p>Simple examples of natural transformations are <code>reverse</code> and <code>maybeToList</code>. Which are transforms one kind of shapes of information into an another one, somehow naturally for the human cognition.</p>
+<p>Another example can be found <a href="http://blog.sigfpe.com/2008/05/you-could-have-defined-natural.html">here</a></p>
+</section>
+</section>
+<section id="monad-laws" class="level3">
+<h3>Monad laws</h3>
+<section id="slogan" class="level4">
+<h4>Slogan</h4>
+<p>There is a slogan:</p>
+<pre><code>A monad is just a monoid in the category of endofunctors, what&#39;s the problem?</code></pre>
+<section id="endofunctor" class="level5">
+<h5>Endofunctor</h5>
+<p>Let's see, from step to step. The <code>endofunctor</code> is a <code>Functor</code> that associates a category <code>C</code> with the same <code>C</code> category. Basically in Haskell every <code>Functor</code> in an <code>endofunctor</code> where the original category is the <code>Hask</code> and the result category is the <code>Hask</code>, more precisely a sub-category of <code>Hask</code>.</p>
+<p>Let's see a concrete example:</p>
+<pre><code>instance Functor Maybe where
+  fmap f Nothing  = Nothing
+  fmap f (Just x) = Just (f x)</code></pre>
+<p>The type of <code>fmap</code> is isomorphic to the ones above</p>
+<pre><code>fmap :: (a -&gt; b) -&gt; Maybe a -&gt; Maybe b
+fmap :: (a -&gt; b) -&gt; (Maybe a -&gt; Maybe b)
+fmap :: Hask (a -&gt; b) -&gt; Hask (Maybe a -&gt; Maybe b)
+fmap :: Hask (a -&gt; b) -&gt; Hask (Maybe a) -&gt; Hask (Maybe b)
+fmap :: Hask (a -&gt; b) -&gt; (Maybe a -&gt; Maybe b)</code></pre>
+<p>Every <code>Functor</code> in Haskell is an <code>endofunctor</code> in the category of Haskell types and (total) functions.</p>
+</section>
+<section id="category-of-endofuctors" class="level5">
+<h5>Category of endofuctors</h5>
+<p>In this category the objects are endofunctors and morphism between them are natural transformations. See <a href="http://ncatlab.org/nlab/show/endofunctor">ncatlab</a> for more details.</p>
+</section>
+<section id="a-monoid-in-the-category-of-endofunctors" class="level5">
+<h5>A monoid in the category of endofunctors</h5>
+<p>The endofunctor category has a monoidal structure. One can compose two functors into one, because they operate on the same objects (which happens to an another category). This is called called a <a href="http://ncatlab.org/nlab/show/monoidal+category">Monoidal category</a></p>
+<p>The monoid needs to have an operation that is the composition of two things, the second one is the identity element. In a monoid of the category of Haskell endofunctors, these are the natural transformations of <code>return</code>, which is the identity element, and the <code>join</code> which is the (tensor) product.</p>
+<p><a href="http://stackoverflow.com/questions/3870088/a-monad-is-just-a-monoid-in-the-category-of-endofunctors-whats-the-problem">The full explanation can be found here.</a></p>
+</section>
+</section>
+<section id="laws-in-haskell" class="level4">
+<h4>Laws in Haskell</h4>
+<p>Two natural transformations <code>eta</code> and <code>mu</code> are associated with the monoidal structure.</p>
+<pre><code>etaNaturalityWith :: (Functor m, Monad m) =&gt; (m b -&gt; m b -&gt; Bool) -&gt; (a -&gt; b) -&gt; a -&gt; Bool
+etaNaturalityWith eq f x = naturalityWith eq (eta . unHask) f (Hask x) where
+  eta = return
+
+muNaturalityWith :: (Functor m, Monad m) =&gt; (m b -&gt; m b -&gt; Bool) -&gt; (a -&gt; b) -&gt; m (m a) -&gt; Bool
+muNaturalityWith eq f x = naturalityWith eq (mu . unF2) f (F2 x)  where
+  mu = join</code></pre>
+<p>The laws for the monad can be found <a href="https://en.wikibooks.org/wiki/Haskell/Category_theory#The_monad_laws_and_their_importance">here</a> and <a href="https://en.wikipedia.org/wiki/Monad_(category_theory)#Formal_definition">here</a>. These can be formalized as functions. With the same idea used to formalize laws of functors and natural transformations.</p>
+<pre><code>law1With :: (Functor m, Monad m) =&gt; (m a -&gt; m a -&gt; Bool) -&gt; m (m (m a)) -&gt; Bool
+law1With eq mmmx = mu (mu mmmx) `eq` mu (fmap mu mmmx) where
+  mu = join
+
+law2With :: (Functor m, Monad m) =&gt; (m a -&gt; m a -&gt; Bool) -&gt; m a -&gt; Bool
+law2With eq mx = mu (eta mx) `eq` mx where
+  mu  = join
+  eta = return
+
+law3With :: (Functor m, Monad m) =&gt; (m a -&gt; m a -&gt; Bool) -&gt; m a -&gt; Bool
+law3With eq mx = mu (fmap eta mx) `eq` mx where
+  mu  = join
+  eta = return</code></pre>
+<p>Properties from functions are:</p>
+<pre><code>etaNaturalityWith gen_fab gen_a eq =
+  forAll gen_fab $ \(Fun _ fab) -&gt;
+  forAll gen_a   $ \a -&gt;
+  Laws.etaNaturalityWith eq fab a
+
+muNaturalityWith gen_fab gen_mma eq =
+  forAll gen_fab $ \(Fun _ fab) -&gt;
+  forAll gen_mma $ \mma -&gt;
+  Laws.muNaturalityWith eq fab mma
+
+law1With gen_mmma eq =
+  forAll gen_mmma $ Laws.law1With eq
+
+law2With gen_ma eq =
+  forAll gen_ma $ Laws.law2With eq
+
+law3With gen_ma eq =
+  forAll gen_ma $ Laws.law3With eq</code></pre>
+<p>The representation above uses the Haskell representation of monads. It is beneficial, as no extra work is needed to include properties to test your monad implementation.</p>
+</section>
+</section>
+</section>
+<section id="github-repository" class="level2">
+<h2>Github repository</h2>
+<p>The github <a href="https://github.com/andorp/category-test-laws">category-test-laws</a> repository has similar codes, but it evolves as I have free time to add more and more constructions from the Category Theory.</p>
+</section>
+</section></div></div></div></body>

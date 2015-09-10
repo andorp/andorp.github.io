@@ -16,7 +16,7 @@ import System.FilePath as FilePath
 import Text.Blaze.Html5 hiding (menu)
 import Text.Blaze.Html5.Attributes as A hiding (id, title)
 import Text.Pandoc.Definition (Pandoc(..), Block(..), Inline(..))
-import Text.Pandoc.Options (def)
+import Text.Pandoc.Options
 import Text.Pandoc.Writers.HTML
 import Text.Blaze.Html.Renderer.String
 
@@ -178,7 +178,15 @@ markdownPathToHTMLPathFP = markdownPathToHTMLPath . path
 -- HTML helpers
 
 pandoc2html :: Pandoc -> Html
-pandoc2html = writeHtml def
+pandoc2html = writeHtml cfg where
+  cfg = def { writerTableOfContents = True
+            , writerSectionDivs = True
+            , writerWrapText = True
+            , writerColumns = 80
+            , writerHtml5 = True
+            , writerHighlight = True
+            , writerHTMLMathMethod = MathML Nothing
+            }
 
 text2html :: Text -> Html
 text2html = fromString . Text.unpack
