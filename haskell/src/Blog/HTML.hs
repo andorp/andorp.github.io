@@ -120,7 +120,7 @@ topics blog =
 
 createPageFrame :: BlogT FileProperties -> NavPath -> Html -> Html
 createPageFrame blog navPath content = do
-  htmlHeader
+  htmlHeader navPath
   body $ container $ do
     topNavbar navPath
     row $ do
@@ -135,15 +135,20 @@ pandoc2panel pandoc = do
 
 -- Bootstrap helpers
 
-htmlHeader :: Html
-htmlHeader = do
+rootPath :: NavPath -> String
+rootPath = navPrefix
+
+htmlHeader :: NavPath -> Html
+htmlHeader navPath = do
   head $ do
     title "Blog"
     meta ! charset "utf-8"
     meta ! name "viewport" ! content "width=device-width, initial-scale=1"
-    link ! rel "stylesheet" ! href "http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css"
-    script ! src "https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js" $ return ()
-    script ! src "http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js" $ return ()
+    link ! rel "stylesheet" ! href (fromString (root </> "bootstrap.min.css"))
+    script ! src (fromString $ root </> "jquery.min.js") $ return ()
+    script ! src (fromString $ root </> "bootstrap.min.js") $ return ()
+  where
+    root = rootPath navPath
 
 
 topNavbar :: NavPath -> Html
@@ -151,7 +156,7 @@ topNavbar navPath = do
   div ! class_ "navbar navbar-default" $ do
     div ! class_ "container-fluid" $ do
       div ! class_ "navbar-header" $ do
-        a ! class_ "navbar-brand" ! href (fromString $ navPrefix navPath </> "index.html") $ "andorp"
+        a ! class_ "navbar-brand" ! href (fromString $ (rootPath navPath) </> "index.html") $ "andorp"
 
 
 container :: Html -> Html
