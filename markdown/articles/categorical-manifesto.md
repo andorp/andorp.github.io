@@ -11,5 +11,5 @@ Some additional categorical concepts and some suggestions for
 further research are also mentioned. The paper concludes with some
 philosophical discussion.
 
-[Link to article](https://andorp.github.io/asset/articles/categorical-manifesto.pdf)
+[Link to the paper](https://andorp.github.io/asset/articles/categorical-manifesto.pdf)
 [Original link](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.13.362&rep=rep1&type=pdf)
